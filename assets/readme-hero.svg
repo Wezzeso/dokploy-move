@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="490" viewBox="0 0 1280 490" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Dokploy Move</title>
+  <desc id="desc">Move your stack. Keep your state. A local migration console that checks, copies, verifies, and starts supported Dokploy installations on a new server.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1280" y2="490" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102338"/>
+      <stop offset="1" stop-color="#08121F"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1020 190) rotate(106) scale(350 440)">
+      <stop stop-color="#136E74" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#136E74" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="route" x1="777" y1="245" x2="1004" y2="245" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3A7087"/>
+      <stop offset="1" stop-color="#63E4CC"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" stroke="#9CBFD3" stroke-opacity=".045"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="490" rx="24" fill="url(#background)"/>
+  <rect width="1280" height="490" rx="24" fill="url(#glow)"/>
+  <rect width="1280" height="490" rx="24" fill="url(#grid)"/>
+  <rect x=".5" y=".5" width="1279" height="489" rx="23.5" stroke="#A0C9DC" stroke-opacity=".16"/>
+  <g font-family="Segoe UI, Inter, Arial, sans-serif">
+    <rect x="64" y="52" width="210" height="32" rx="16" fill="#17394A" stroke="#337366" stroke-opacity=".6"/>
+    <circle cx="82" cy="68" r="4" fill="#77EACB"/>
+    <text x="95" y="73" fill="#C2F6E9" font-size="12" font-weight="600" letter-spacing="1.35">DOKPLOY MIGRATION</text>
+    <text x="61" y="159" fill="#F1F7FF" font-size="62" font-weight="700" letter-spacing="-2.7">Dokploy Move</text>
+    <text x="64" y="221" fill="#E1ECF5" font-size="33" font-weight="400" letter-spacing="-.7">Move your stack.</text>
+    <text x="64" y="264" fill="#70E3CD" font-size="33" font-weight="400" letter-spacing="-.7">Keep your state.</text>
+    <text x="64" y="313" fill="#94ACC0" font-size="17">A local console. A coordinated cutover.</text>
+    <text x="64" y="341" fill="#94ACC0" font-size="17">Your supported projects and data, together.</text>
+    <path d="M64 389H571" stroke="#314A5E"/>
+    <text x="64" y="420" fill="#A6BDCE" font-size="12" font-weight="600" letter-spacing="1.4">PYTHON + SSH</text>
+    <circle cx="207" cy="415" r="2" fill="#597589"/>
+    <text x="224" y="420" fill="#A6BDCE" font-size="12" font-weight="600" letter-spacing="1.4">SINGLE-NODE LINUX</text>
+    <circle cx="407" cy="415" r="2" fill="#597589"/>
+    <text x="424" y="420" fill="#A6BDCE" font-size="12" font-weight="600" letter-spacing="1.4">EN / RU / KK</text>
+
+    <rect x="652" y="75" width="562" height="338" rx="18" fill="#0B1928" stroke="#2A4558"/>
+    <path d="M652 120H1214" stroke="#263E51"/>
+    <circle cx="675" cy="98" r="4" fill="#507183"/>
+    <circle cx="690" cy="98" r="4" fill="#507183"/>
+    <circle cx="705" cy="98" r="4" fill="#507183"/>
+    <text x="730" y="103" fill="#8FAABD" font-size="12">LOCAL MIGRATION CONSOLE</text>
+    <rect x="1088" y="88" width="105" height="21" rx="10.5" fill="#173C3A"/>
+    <circle cx="1100" cy="98.5" r="3" fill="#76E6C6"/>
+    <text x="1110" y="103" fill="#B5EEDB" font-size="10" font-weight="600">OVER SSH</text>
+
+    <text x="694" y="158" fill="#839DB1" font-size="11" font-weight="600" letter-spacing="1.7">SOURCE</text>
+    <text x="1040" y="158" fill="#839DB1" font-size="11" font-weight="600" letter-spacing="1.7">DESTINATION</text>
+
+    <rect x="692" y="178" width="123" height="109" rx="11" fill="#122A3D" stroke="#36546B"/>
+    <rect x="713" y="199" width="81" height="22" rx="4" fill="#1B384D" stroke="#49667A"/>
+    <circle cx="777" cy="210" r="3" fill="#6BC6CF"/>
+    <path d="M723 210H753" stroke="#668C9F" stroke-width="3" stroke-linecap="round"/>
+    <rect x="713" y="231" width="81" height="22" rx="4" fill="#1B384D" stroke="#49667A"/>
+    <circle cx="777" cy="242" r="3" fill="#6BC6CF"/>
+    <path d="M723 242H753" stroke="#668C9F" stroke-width="3" stroke-linecap="round"/>
+    <text x="724" y="274" fill="#BDCFDE" font-size="11">current host</text>
+
+    <path d="M830 229H1023" stroke="url(#route)" stroke-width="2" stroke-dasharray="5 6"/>
+    <path d="M1015 222L1023 229L1015 236" stroke="#63E4CC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="876" y="202" width="95" height="54" rx="12" fill="#123A3D" stroke="#388B80"/>
+    <path d="M899 228L906 235L919 222" stroke="#83F0D2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="929" y="233" fill="#BEF4E7" font-size="12" font-weight="600">verify</text>
+    <text x="859" y="279" fill="#8DA9BC" font-size="11">local state + metadata</text>
+
+    <rect x="1038" y="178" width="134" height="109" rx="11" fill="#113038" stroke="#3B887D"/>
+    <rect x="1064" y="199" width="82" height="22" rx="4" fill="#1A4146" stroke="#438E82"/>
+    <circle cx="1129" cy="210" r="3" fill="#82E4C9"/>
+    <path d="M1074 210H1104" stroke="#65B6AD" stroke-width="3" stroke-linecap="round"/>
+    <rect x="1064" y="231" width="82" height="22" rx="4" fill="#1A4146" stroke="#438E82"/>
+    <circle cx="1129" cy="242" r="3" fill="#82E4C9"/>
+    <path d="M1074 242H1104" stroke="#65B6AD" stroke-width="3" stroke-linecap="round"/>
+    <text x="1078" y="274" fill="#C1E8E0" font-size="11">fresh host</text>
+
+    <path d="M692 313H1172" stroke="#263E51"/>
+    <g font-size="10" font-weight="600" letter-spacing="1.1">
+      <circle cx="706" cy="346" r="12" fill="#193A43"/>
+      <text x="703" y="350" fill="#B8EADF" letter-spacing="0">1</text>
+      <text x="726" y="350" fill="#BED2DE">CHECK</text>
+      <path d="M782 346H809" stroke="#496476"/>
+      <circle cx="834" cy="346" r="12" fill="#193A43"/>
+      <text x="831" y="350" fill="#B8EADF" letter-spacing="0">2</text>
+      <text x="854" y="350" fill="#BED2DE">COPY</text>
+      <path d="M903 346H930" stroke="#496476"/>
+      <circle cx="955" cy="346" r="12" fill="#193A43"/>
+      <text x="952" y="350" fill="#B8EADF" letter-spacing="0">3</text>
+      <text x="975" y="350" fill="#BED2DE">VERIFY</text>
+      <path d="M1036 346H1063" stroke="#496476"/>
+      <circle cx="1088" cy="346" r="12" fill="#226150"/>
+      <text x="1085" y="350" fill="#C5FFEA" letter-spacing="0">4</text>
+      <text x="1108" y="350" fill="#BDF1DE">START</text>
+    </g>
+    <text x="692" y="387" fill="#6E91A5" font-size="11">Prepare ahead. Switch during maintenance. Reconnect to follow progress.</text>
+  </g>
+</svg>

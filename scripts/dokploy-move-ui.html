@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Dokploy server migration</title>
+  <style>
+    /* Standalone console color and shape tokens. */
+    :root {
+      color-scheme: light dark;
+      --canvas: light-dark(oklch(98.75% 0 0), #0d0d0d);
+      --base: light-dark(#fff, oklch(17% 0 0));
+      --recessed: light-dark(oklch(96.5% 0 0), #17181a);
+      --control: light-dark(#fff, oklch(20.5% 0 0));
+      --fill: light-dark(oklch(92.2% 0 0), oklch(26.9% 0 0));
+      --line: light-dark(oklch(14.5% 0 0 / 0.15), oklch(38% 0 0));
+      --text-strong: light-dark(oklch(14.5% 0 0), oklch(98.5% 0 0));
+      --text-default: light-dark(oklch(20.5% 0 0), oklch(97% 0 0));
+      --text-subtle: light-dark(oklch(48% 0 0), oklch(75% 0 0));
+      --contrast: light-dark(oklch(12% 0 0), oklch(98.5% 0 0));
+      --contrast-foreground: light-dark(oklch(97% 0 0), oklch(20.5% 0 0));
+      --success-tint: light-dark(oklch(96.2% 0.043 156.7 / 0.57), oklch(39.3% 0.096 152.3 / 0.4));
+      --success-foreground: light-dark(oklch(43.2% 0.095 166.913), oklch(90.5% 0.093 164.15));
+      --warning-tint: light-dark(oklch(93.1% 0.107 94.6 / 0.2), oklch(35.3% 0.079 65 / 0.5));
+      --warning-foreground: light-dark(oklch(47% 0.12 57.5), oklch(82% 0.12 65));
+      --danger-tint: light-dark(oklch(93.6% 0.032 17.7 / 0.42), oklch(42.9% 0.176 28.7 / 0.38));
+      --danger-foreground: light-dark(oklch(50.5% 0.213 27.518), oklch(80% 0.12 22.216));
+      --terminal: oklch(10% 0 0);
+      --terminal-foreground: oklch(93.5% 0 0);
+      --radius-compact: 0.25rem;
+      --radius-control: 0.5rem;
+      --radius-panel: 0.75rem;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"] { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--canvas); color: var(--text-default); font: 0.875rem/1.55 Inter, "Segoe UI", system-ui, sans-serif; }
+    button, input, select { font: inherit; }
+    button, summary, select, input[type="checkbox"] { cursor: pointer; }
+    button, input, select { border: 1px solid var(--line); border-radius: var(--radius-control); }
+    button, select { min-height: 2.75rem; }
+    button { padding: 0.625rem 1rem; background: var(--control); color: var(--text-default); font-weight: 600; text-align: center; }
+    button:hover:not(:disabled) { background: var(--fill); }
+    button:disabled, input:disabled { cursor: not-allowed; opacity: 0.5; }
+    :focus-visible { outline: 3px solid var(--text-strong); outline-offset: 3px; }
+    input[type="text"] { width: 100%; min-height: 2.75rem; padding: 0.625rem 0.75rem; background: var(--control); color: var(--text-default); }
+    input::placeholder { color: var(--text-subtle); }
+    input[type="checkbox"] { width: 1.125rem; height: 1.125rem; margin: 0.2rem 0 0; flex: 0 0 auto; accent-color: var(--text-strong); }
+    select { padding: 0.5rem 2rem 0.5rem 0.75rem; background: var(--control); color: var(--text-default); max-width: 100%; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.15; font-weight: 700; color: var(--text-strong); max-width: 24ch; }
+    h2 { font-size: 1.125rem; line-height: 1.4; font-weight: 600; color: var(--text-strong); }
+    h3 { font-size: 1rem; font-weight: 600; color: var(--text-strong); }
+    strong { font-weight: 600; }
+    a { color: inherit; text-underline-offset: 0.2em; }
+    code, pre, .host { font-family: "Cascadia Code", Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    .shell { width: min(100%, 81rem); margin: 0 auto; padding: 0 1.5rem; }
+    .topbar { border-bottom: 1px solid var(--line); }
+    .topbar .shell { min-height: 5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; }
+    .brand { font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+    .brand-mark { width: 1.5rem; height: 1.5rem; border: 2px solid var(--text-strong); border-radius: var(--radius-compact); display: grid; place-items: center; font-size: 0.75rem; }
+    .subtle { color: var(--text-subtle); }
+    .preferences { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .skip { position: absolute; top: -10rem; left: 1rem; background: var(--base); padding: 0.75rem; z-index: 1; }
+    .skip:focus { top: 1rem; }
+    main { padding-block: 3rem !important; }
+    .intro { display: grid; gap: 1rem; margin-bottom: 2rem; }
+    .intro p { max-width: 70ch; color: var(--text-subtle); }
+    .workflow { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; padding: 0; margin: 1.5rem 0 0; list-style: none; }
+    .workflow li { display: flex; align-items: center; gap: 0.5rem; color: var(--text-subtle); }
+    .step { width: 1.5rem; height: 1.5rem; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; font-weight: 600; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 1.5rem; align-items: start; }
+    .panel { border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--base); min-width: 0; }
+    .panel-body { padding: 1.5rem; }
+    .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .section-copy { margin-top: 0.5rem; color: var(--text-subtle); }
+    .fields { display: grid; gap: 1rem; margin-top: 1.5rem; }
+    .field { display: grid; gap: 0.375rem; min-width: 0; }
+    .field > label { font-weight: 600; }
+    .field p { color: var(--text-subtle); }
+    .action-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+    .action-row button { flex: 1 1 12rem; }
+    .primary { background: var(--contrast); color: var(--contrast-foreground); border-color: var(--contrast); }
+    .primary:hover:not(:disabled) { background: var(--text-default); }
+    .danger { color: var(--danger-foreground); }
+    .operation { padding: 1.5rem; border-top: 1px solid var(--line); }
+    .consequence { border-left: 3px solid var(--warning-foreground); padding-left: 1rem; margin-bottom: 1rem; }
+    .consequence p { margin-top: 0.375rem; }
+    .check-label { display: flex; align-items: flex-start; gap: 0.75rem; }
+    .gate { margin-top: 0.75rem; color: var(--text-subtle); }
+    details { border-top: 1px solid var(--line); }
+    summary { padding: 1rem 1.5rem; font-weight: 600; }
+    .details-body { padding: 0 1.5rem 1.5rem; display: grid; gap: 1rem; }
+    .advanced-action { display: grid; gap: 0.5rem; }
+    .advanced-action + .advanced-action { border-top: 1px solid var(--line); padding-top: 1rem; }
+    .advanced-action button { justify-self: start; }
+    .badge { display: inline-flex; padding: 0.25rem 0.5rem; border-radius: var(--radius-control); background: var(--recessed); font-weight: 600; }
+    .badge[data-tone="success"] { background: var(--success-tint); color: var(--success-foreground); }
+    .badge[data-tone="warning"] { background: var(--warning-tint); color: var(--warning-foreground); }
+    .badge[data-tone="danger"] { background: var(--danger-tint); color: var(--danger-foreground); }
+    .status-title { margin-top: 1.5rem; }
+    .status-copy { margin-top: 0.5rem; }
+    .metadata { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem 1rem; margin: 1.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); }
+    .metadata dt { color: var(--text-subtle); }
+    .metadata dd { margin: 0; overflow-wrap: anywhere; }
+    .checklist { margin: 1rem 0 0; padding-left: 1.25rem; display: grid; gap: 0.75rem; }
+    .finish { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+    .scope { margin-top: 1.5rem; }
+    .scope ul { padding-left: 1.25rem; display: grid; gap: 0.75rem; margin-bottom: 0; }
+    .scope h3 + p { margin-top: 0.5rem; }
+    .alert { margin-bottom: 1.5rem; padding: 1rem 1.5rem; border: 1px solid var(--danger-foreground); background: var(--danger-tint); color: var(--danger-foreground); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
+    .alert p + p { margin-top: 0.5rem; }
+    .log-panel { margin-top: 1.5rem; overflow: hidden; }
+    .log-panel header { padding: 1rem 1.5rem; }
+    .log { margin: 0; padding: 1.5rem; min-height: 12rem; max-height: 32rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--terminal); color: var(--terminal-foreground); font-size: 0.8125rem; line-height: 1.65; }
+    .log:focus-visible { outline-offset: -4px; outline-color: var(--terminal-foreground); }
+    .footer { margin-top: 1.5rem; color: var(--text-subtle); }
+    @media (max-width: 56rem) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+    @media (max-width: 30rem) {
+      .shell { padding-inline: 1rem; }
+      main { padding-block: 2rem !important; }
+      .topbar .shell { align-items: flex-start; flex-direction: column; }
+      .panel-body, .operation { padding: 1rem; }
+      summary { padding-inline: 1rem; }
+      .details-body { padding-inline: 1rem; }
+      .log-panel header, .log { padding: 1rem; }
+      .metadata { grid-template-columns: minmax(0, 1fr); gap: 0.125rem; }
+      .metadata dd + dt { margin-top: 0.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="skip">Skip to migration</a>
+  <header class="topbar">
+    <div class="shell">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">D</span><span>Dokploy</span><span class="subtle" data-i18n="console">Server migration</span></div>
+      <div class="preferences">
+        <label class="visually-hidden" for="language" data-i18n="language">Language</label>
+        <select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option><option value="kk" lang="kk">Қазақша</option></select>
+        <label class="visually-hidden" for="theme" data-i18n="theme">Theme</label>
+        <select id="theme"><option value="system" data-i18n="themeSystem">System theme</option><option value="light" data-i18n="themeLight">Light theme</option><option value="dark" data-i18n="themeDark">Dark theme</option></select>
+      </div>
+    </div>
+  </header>
+  <main id="main" class="shell">
+    <div class="intro">
+      <h1 data-i18n="heading">Move your Dokploy server</h1>
+      <p data-i18n="intro">Transfer Dokploy and every local Docker project to a fresh, compatible server. Check the destination, then start the complete move with one button.</p>
+      <ol class="workflow" aria-label="Migration steps" id="workflow">
+        <li><span class="step" aria-hidden="true">1</span><span data-i18n="stepCheck">Check destination</span></li>
+        <li><span class="step" aria-hidden="true">2</span><span data-i18n="stepMove">Copy and switch</span></li>
+        <li><span class="step" aria-hidden="true">3</span><span data-i18n="stepFinish">Verify and update DNS</span></li>
+      </ol>
+    </div>
+    <noscript><p class="alert">JavaScript is required for this local migration console.</p></noscript>
+    <div id="error" class="alert" role="alert" hidden><p id="error-text"></p><p id="error-help" hidden></p></div>
+    <div class="workspace">
+      <form id="migration-form" class="panel">
+        <div class="panel-body">
+          <h2 data-i18n="connectionHeading">Connect the two servers</h2>
+          <p class="section-copy" data-i18n="connectionCopy">Use root SSH access. SSH keys and verified host keys must already work from this computer to the source, and from the source to the destination.</p>
+          <div class="fields">
+            <div class="field">
+              <label for="source" data-i18n="source">Current server</label>
+              <input id="source" name="source" class="host" type="text" placeholder="root@old-server" required autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="source-help" maxlength="260">
+              <p id="source-help" data-i18n="sourceHelp">root@hostname or root@SSH-alias on this computer.</p>
+            </div>
+            <div class="field">
+              <label for="target" data-i18n="target">Fresh destination server</label>
+              <input id="target" name="target" class="host" type="text" placeholder="root@new-server" required autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="target-help" maxlength="260">
+              <p id="target-help" data-i18n="targetHelp">The SSH alias must resolve on the source. The destination must have matching Linux and Docker versions, with no Dokploy installation or workloads.</p>
+            </div>
+            <div class="field">
+              <label for="new-ip" data-i18n="newIp">Destination static IPv4</label>
+              <input id="new-ip" name="new_ip" class="host" type="text" placeholder="10.0.0.20" required autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="decimal" aria-describedby="ip-help" maxlength="15">
+              <p id="ip-help" data-i18n="ipHelp">An address assigned to its network interface for Swarm. Behind NAT, use its local private IPv4; public DNS can use a different public IP.</p>
+            </div>
+          </div>
+          <div class="action-row">
+            <button id="plan" type="submit" data-i18n="plan">Check destination</button>
+            <button id="refresh" type="button" data-i18n="refresh">Reconnect / refresh status</button>
+          </div>
+          <p class="gate" data-i18n="reconnectHelp">Reconnect finds the latest job on the source and restores its destination settings. Jobs continue on the source if this window closes.</p>
+        </div>
+        <div class="operation">
+          <div class="consequence">
+            <h3 data-i18n="outageHeading">Plan a maintenance window</h3>
+            <p data-i18n="outageCopy">The move stops every Docker workload on the current server for the final copy. The old server stays stopped, including after reboot, while the destination starts.</p>
+          </div>
+          <label class="check-label" for="acknowledge"><input id="acknowledge" type="checkbox"><span data-i18n="acknowledge">I am ready for the outage, have an independent backup, and have paused deployments and other writers to the copied data.</span></label>
+          <div class="action-row"><button id="move" class="primary" type="button" data-i18n="move">Move all local projects</button></div>
+          <p id="gate" class="gate" aria-live="polite"></p>
+        </div>
+        <details>
+          <summary data-i18n="advanced">Scheduled copy and recovery</summary>
+          <div class="details-body">
+            <div class="advanced-action"><h3 data-i18n="prepareHeading">Copy ahead of maintenance</h3><p class="subtle" data-i18n="prepareCopy">Copy most data while the source stays available. When ready for downtime, run the final switch below.</p><button id="prepare" type="button" data-i18n="prepare">Prepare initial copy</button></div>
+            <div class="advanced-action"><h3 data-i18n="cutoverHeading">Finish a prepared move</h3><p class="subtle" data-i18n="cutoverCopy">Stop the source, copy and verify final changes, then start the destination. After a failed final copy, resolve the reported issue and run this action again.</p><button id="cutover" type="button" data-i18n="cutover">Run final switch</button></div>
+            <div class="advanced-action"><h3 data-i18n="resumeHeading">Resume the old server</h3><p class="subtle" data-i18n="resumeCopy">Recovery before destination activation only. This restarts old workloads and makes the prepared copy stale. The engine refuses unless it can prove the destination has never started and is stopped.</p><label class="check-label" for="resume-ack"><input id="resume-ack" type="checkbox"><span data-i18n="resumeAcknowledge">I intend to restart the old workloads. The next final switch must copy changes again.</span></label><button id="resume-source" class="danger" type="button" data-i18n="resume">Resume source safely</button></div>
+          </div>
+        </details>
+      </form>
+      <aside aria-labelledby="status-heading">
+        <section class="panel panel-body" aria-labelledby="status-heading">
+          <div class="section-heading"><h2 id="status-heading" data-i18n="statusHeading">Migration status</h2><span id="badge" class="badge"></span></div>
+          <div aria-live="polite" aria-atomic="true"><h3 id="status-title" class="status-title"></h3><p id="status-copy" class="status-copy subtle"></p></div>
+          <dl id="metadata" class="metadata" hidden>
+            <dt data-i18n="actionLabel">Action</dt><dd id="job-action"></dd>
+            <dt data-i18n="targetLabel">Destination</dt><dd id="job-target" class="host"></dd>
+            <dt data-i18n="phaseLabel">Phase</dt><dd id="job-phase"></dd>
+            <dt data-i18n="jobLabel">Job</dt><dd id="job-id" class="host"></dd>
+          </dl>
+          <div id="finish" class="finish" hidden>
+            <h3 data-i18n="finishHeading">Finish before retiring the source</h3>
+            <ol class="checklist"><li data-i18n="finishIp">In Dokploy: Web Server → Server → Update IP. Review references to the old IP.</li><li data-i18n="finishTest">Smoke test existing logins/MFA, database records, uploads/downloads, and every application's health on the destination.</li><li data-i18n="finishDns">Update DNS A/AAAA records and provider firewalls. Verify HTTPS, OAuth, email, bots, and storage connectivity.</li><li data-i18n="finishKeep">Keep the old server stopped and retain your backup. New workers may already have changed data, even before DNS changes.</li></ol>
+          </div>
+        </section>
+        <section class="scope" aria-labelledby="scope-heading"><h3 id="scope-heading" data-i18n="scopeHeading">What transfers</h3><p class="subtle" data-i18n="scopeCopy">Dokploy settings, local databases, Docker volumes and images, uploads, container state, certificates, environment values, and discovered application bind mounts.</p><ul class="subtle"><li data-i18n="scopeExternal">External database, S3, registry, and remote-server connections keep their settings; external data stays at those services.</li><li data-i18n="scopeHost">DNS, cloud firewalls, host packages, OS cron jobs, and other data outside the copied locations require separate setup.</li></ul></section>
+      </aside>
+    </div>
+    <section class="panel log-panel" aria-labelledby="log-heading">
+      <header class="section-heading"><h2 id="log-heading" data-i18n="logHeading">Job output</h2><span id="poll-status" class="subtle"></span></header>
+      <pre id="log" class="log" tabindex="0" aria-label="Migration job output"></pre>
+    </section>
+    <p class="footer" data-i18n="footer">Review output before retrying a failed action. Recovery never runs automatically. Keep both runtimes stopped if final copying or verification fails.</p>
+  </main>
+  <script>
+    "use strict";
+    const dictionaries = {
+      en: {
+        activeReviewCopy: "The destination confirms it is running, but the migration job did not finish successfully. Review its output and inspect the new server. Keep the old server stopped, then complete the checks below.",
+        title: "Dokploy server migration", skip: "Skip to migration", console: "Server migration", language: "Language", theme: "Theme", themeSystem: "System theme", themeLight: "Light theme", themeDark: "Dark theme",
+        heading: "Move your Dokploy server", intro: "Transfer Dokploy and every local Docker project to a fresh, compatible server. Check the destination, then start the complete move with one button.", stepsLabel: "Migration steps", stepCheck: "Check destination", stepMove: "Copy and switch", stepFinish: "Verify and update DNS",
+        connectionHeading: "Connect the two servers", connectionCopy: "Use root SSH access. SSH keys and verified host keys must already work from this computer to the source, and from the source to the destination.",
+        source: "Current server", sourceHelp: "root@hostname or root@SSH-alias on this computer.", target: "Fresh destination server", targetHelp: "The SSH alias must resolve on the source. The destination must have matching Linux and Docker versions, with no Dokploy installation or workloads.", newIp: "Destination static IPv4", ipHelp: "An address assigned to its network interface for Swarm. Behind NAT, use its local private IPv4; public DNS can use a different public IP.",
+        plan: "Check destination", refresh: "Reconnect / refresh status", reconnectHelp: "Reconnect finds the latest job on the source and restores its destination settings. Jobs continue on the source if this window closes.",
+        outageHeading: "Plan a maintenance window", outageCopy: "The move stops every Docker workload on the current server for the final copy. The old server stays stopped, including after reboot, while the destination starts.", acknowledge: "I am ready for the outage, have an independent backup, and have paused deployments and other writers to the copied data.", move: "Move all local projects",
+        advanced: "Scheduled copy and recovery", prepareHeading: "Copy ahead of maintenance", prepareCopy: "Copy most data while the source stays available. When ready for downtime, run the final switch below.", prepare: "Prepare initial copy", cutoverHeading: "Finish a prepared move", cutoverCopy: "Stop the source, copy and verify final changes, then start the destination. After a failed final copy, resolve the reported issue and run this action again.", cutover: "Run final switch", resumeHeading: "Resume the old server", resumeCopy: "Recovery before destination activation only. This restarts old workloads and makes the prepared copy stale. The engine refuses unless it can prove the destination has never started and is stopped.", resumeAcknowledge: "I intend to restart the old workloads. The next final switch must copy changes again.", resume: "Resume source safely",
+        statusHeading: "Migration status", actionLabel: "Action", targetLabel: "Destination", phaseLabel: "Phase", jobLabel: "Job", finishHeading: "Finish before retiring the source", finishIp: "In Dokploy: Web Server → Server → Update IP. Review references to the old IP.", finishTest: "Smoke test existing logins/MFA, database records, uploads/downloads, and every application's health on the destination.", finishDns: "Update DNS A/AAAA records and provider firewalls. Verify HTTPS, OAuth, email, bots, and storage connectivity.", finishKeep: "Keep the old server stopped and retain your backup. New workers may already have changed data, even before DNS changes.",
+        scopeHeading: "What transfers", scopeCopy: "Dokploy settings, local databases, Docker volumes and images, uploads, container state, certificates, environment values, and discovered application bind mounts.", scopeExternal: "External database, S3, registry, and remote-server connections keep their settings; external data stays at those services.", scopeHost: "DNS, cloud firewalls, host packages, OS cron jobs, and other data outside the copied locations require separate setup.", logHeading: "Job output", footer: "Review output before retrying a failed action. Recovery never runs automatically. Keep both runtimes stopped if final copying or verification fails.",
+        gateCheck: "Check this exact source, destination, and IPv4 before moving.", gateAcknowledge: "Destination check passed. Confirm the maintenance window to enable the move.", gateReady: "Destination check passed for these settings. Ready to move.", gateBusy: "A remote job is running. Server settings and actions are locked.", gatePending: "Contacting the source server…", gateUnknown: "Reconnect to learn whether the last request started a job.", gateFinish: "Destination activation has begun. Inspect its health and finish the checklist; do not restart the source.", gateCutover: "Continue or retry from “Run final switch” after reviewing the output.",
+        badgeIdle: "Not checked", badgeRunning: "Running", badgeSuccess: "Complete", badgeFailed: "Needs attention", badgeUnknown: "Check status", badgeReady: "Ready", idleTitle: "Start with a destination check", idleCopy: "The check reviews runtime compatibility, empty destination, storage coverage, and free space. It does not stop workloads.", planTitle: "Destination check passed", planCopy: "Review the data locations in the output. The complete move copies data first, then stops the source for the final verified transfer.", activeTitle: "Destination running — finish DNS", activeCopy: "The destination started and its replica/container health checks passed. The old Docker runtime stays stopped. Complete the application and traffic checks below.", activatingTitle: "Destination activation has begun", activatingCopy: "Inspect the destination if startup failed. It may already have changed data. Do not resume or recopy the old server.", preparedTitle: "Initial copy ready — source still running", preparedCopy: "Schedule maintenance, confirm the outage acknowledgement, and run the final switch. New changes will be copied and verified before destination startup.", resumedTitle: "Old server resumed", resumedCopy: "Source workloads were restarted. The next final switch must copy and verify source changes again.", failedTitle: "Action failed — review the output", failedCopy: "Resolve the reported cause before retrying. If source workloads stopped, leave both runtimes stopped until final switch or verified recovery is safe.", unknownTitle: "Remote job result is unknown", unknownCopy: "Reconnect and inspect the job output before starting another action. No recovery has been attempted.", runningTitle: "Remote job in progress", runningCopy: "Progress refreshes every five seconds. The job keeps running on the source if this window closes. Leave the local launcher running to reconnect here.", completeTitle: "Action completed", completeCopy: "Review the output and current phase before choosing the next action.",
+        phaseNone: "No migration state yet", phaseReserved: "Destination reserved", phasePrepared: "Initial copy complete", phaseStopping: "Stopping source workloads", phaseSourceStopped: "Source stopped; final copy / verification", phaseVerified: "Final copy verified", phaseActivating: "Starting destination", phaseActive: "Destination running", pollActive: "Refreshing every 5 seconds", pollIdle: "Refresh status to reconnect", pollPending: "Connecting…", logEmpty: "No job output yet. Check the destination or reconnect to an existing job.", noJob: "No remote job was found for this source.", missingToken: "This console has no access token. Open the complete local URL printed by the migration launcher again.", invalidSource: "Enter the current server as root@hostname or root@SSH-alias.", invalidTarget: "Enter the destination as root@hostname or root@SSH-alias.", invalidIp: "Enter a valid destination IPv4 address, for example 10.0.0.20.", sameHost: "The source and destination must be different servers.", requestFailed: "Could not reach the local migration launcher. Keep it running and reconnect to check the source.", invalidResponse: "The launcher returned an invalid response. Reconnect before starting another action.", uncertainHelp: "The remote action may already have started. Use Reconnect / refresh status before retrying; closing this page does not stop a job.", actionNotReady: "Check the destination and confirm the required acknowledgement before this action."
+      },
+      ru: {
+        activeReviewCopy: "Новый сервер подтверждает работу, но задание переноса не завершилось успешно. Изучите вывод и проверьте новый сервер. Оставьте старый сервер остановленным и выполните проверки ниже.",
+        title: "Перенос сервера Dokploy", skip: "Перейти к переносу", console: "Перенос сервера", language: "Язык", theme: "Тема", themeSystem: "Системная тема", themeLight: "Светлая тема", themeDark: "Тёмная тема",
+        heading: "Перенесите сервер Dokploy", intro: "Перенесите Dokploy и все локальные проекты Docker на новый совместимый сервер. Проверьте назначение, затем запустите полный перенос одной кнопкой.", stepsLabel: "Этапы переноса", stepCheck: "Проверить назначение", stepMove: "Скопировать и переключить", stepFinish: "Проверить и обновить DNS",
+        connectionHeading: "Подключите два сервера", connectionCopy: "Используйте SSH с правами root. Ключи SSH и проверенные ключи хостов должны уже работать с этого компьютера на исходный сервер и с исходного на новый.",
+        source: "Текущий сервер", sourceHelp: "root@имя-хоста или root@SSH-псевдоним на этом компьютере.", target: "Новый пустой сервер", targetHelp: "SSH-псевдоним должен работать на исходном сервере. Версии Linux и Docker должны совпадать; на новом сервере не должно быть Dokploy и запущенных проектов.", newIp: "Статический IPv4 нового сервера", ipHelp: "Адрес сетевого интерфейса для Swarm. За NAT используйте локальный частный IPv4; в публичном DNS можно указать другой публичный IP.",
+        plan: "Проверить назначение", refresh: "Подключиться / обновить статус", reconnectHelp: "Повторное подключение находит последнее задание на исходном сервере и восстанавливает его настройки назначения. Закрытие окна не останавливает задание.",
+        outageHeading: "Запланируйте окно обслуживания", outageCopy: "Для финального копирования перенос останавливает все нагрузки Docker на текущем сервере. Старый сервер останется остановленным, в том числе после перезагрузки, а новый запустится.", acknowledge: "Я готов к простою, у меня есть отдельная резервная копия. Развёртывания и другие процессы записи в переносимые данные приостановлены.", move: "Перенести все локальные проекты",
+        advanced: "Копирование по расписанию и восстановление", prepareHeading: "Скопировать до обслуживания", prepareCopy: "Скопируйте основную часть данных, пока исходный сервер доступен. Когда будете готовы к простою, выполните финальное переключение ниже.", prepare: "Подготовить начальную копию", cutoverHeading: "Завершить подготовленный перенос", cutoverCopy: "Остановите исходный сервер, скопируйте и проверьте последние изменения, затем запустите новый. Если финальная копия не удалась, устраните причину и повторите это действие.", cutover: "Выполнить финальное переключение", resumeHeading: "Возобновить старый сервер", resumeCopy: "Восстановление доступно только до активации нового сервера. Оно запускает старые нагрузки, и подготовленная копия устаревает. Инструмент откажет, если не сможет доказать, что новый сервер ещё не запускался и остановлен.", resumeAcknowledge: "Я намерен запустить старые нагрузки. При следующем финальном переключении изменения нужно скопировать заново.", resume: "Безопасно возобновить исходный сервер",
+        statusHeading: "Статус переноса", actionLabel: "Действие", targetLabel: "Назначение", phaseLabel: "Этап", jobLabel: "Задание", finishHeading: "Завершите перед удалением старого сервера", finishIp: "В Dokploy: Web Server → Server → Update IP. Проверьте ссылки на старый IP.", finishTest: "На новом сервере проверьте существующие входы/MFA, записи базы, загрузку и скачивание файлов, а также работу каждого приложения.", finishDns: "Обновите записи DNS A/AAAA и облачные межсетевые экраны. Проверьте HTTPS, OAuth, почту, ботов и доступ к хранилищу.", finishKeep: "Оставьте старый сервер остановленным и сохраните резервную копию. Новые фоновые процессы могли изменить данные ещё до смены DNS.",
+        scopeHeading: "Что переносится", scopeCopy: "Настройки Dokploy, локальные базы данных, тома и образы Docker, загруженные файлы, состояние контейнеров, сертификаты, переменные окружения и обнаруженные bind mount приложений.", scopeExternal: "Настройки подключений к внешним базам, S3, реестрам и удалённым серверам сохраняются; внешние данные остаются в этих сервисах.", scopeHost: "DNS, облачные межсетевые экраны, пакеты ОС, задания cron и данные вне копируемых путей нужно настроить отдельно.", logHeading: "Вывод задания", footer: "Прочитайте вывод перед повтором действия. Восстановление не запускается автоматически. Если финальная копия или проверка не удалась, оставьте обе среды остановленными.",
+        gateCheck: "Перед переносом проверьте именно эти исходный сервер, назначение и IPv4.", gateAcknowledge: "Назначение проверено. Подтвердите готовность к обслуживанию, чтобы включить перенос.", gateReady: "Назначение проверено для этих настроек. Можно переносить.", gateBusy: "Удалённое задание выполняется. Настройки серверов и действия заблокированы.", gatePending: "Подключение к исходному серверу…", gateUnknown: "Подключитесь повторно, чтобы узнать, запустилось ли последнее действие.", gateFinish: "Активация нового сервера началась. Проверьте его работу и завершите список; не запускайте старый сервер.", gateCutover: "После изучения вывода продолжите или повторите через «Финальное переключение».",
+        badgeIdle: "Не проверено", badgeRunning: "Выполняется", badgeSuccess: "Завершено", badgeFailed: "Нужно внимание", badgeUnknown: "Проверьте статус", badgeReady: "Готово", idleTitle: "Начните с проверки назначения", idleCopy: "Проверка оценивает совместимость, пустоту нового сервера, охват данных и свободное место. Нагрузки не останавливаются.", planTitle: "Назначение прошло проверку", planCopy: "Просмотрите пути данных в выводе. Полный перенос сначала копирует данные, затем останавливает исходный сервер для финальной проверенной передачи.", activeTitle: "Новый сервер работает — завершите DNS", activeCopy: "Новый сервер запущен, проверки реплик и контейнеров пройдены. Старый Docker остаётся остановленным. Проверьте приложения и трафик по списку ниже.", activatingTitle: "Активация нового сервера началась", activatingCopy: "Если запуск не удался, проверьте новый сервер. Данные могли уже измениться. Не возобновляйте и не копируйте старый сервер повторно.", preparedTitle: "Начальная копия готова — исходный сервер работает", preparedCopy: "Запланируйте обслуживание, подтвердите готовность к простою и выполните финальное переключение. Новые изменения будут скопированы и проверены до запуска назначения.", resumedTitle: "Старый сервер возобновлён", resumedCopy: "Нагрузки исходного сервера запущены. Следующее финальное переключение должно снова скопировать и проверить изменения.", failedTitle: "Действие не удалось — прочитайте вывод", failedCopy: "Устраните указанную причину перед повтором. Если исходные нагрузки остановились, оставьте обе среды остановленными до безопасного переключения или проверенного восстановления.", unknownTitle: "Результат удалённого задания неизвестен", unknownCopy: "Подключитесь повторно и изучите вывод перед новым действием. Восстановление не выполнялось.", runningTitle: "Удалённое задание выполняется", runningCopy: "Статус обновляется каждые пять секунд. Закрытие окна не остановит задание на исходном сервере. Оставьте локальную программу запущенной для подключения здесь.", completeTitle: "Действие завершено", completeCopy: "Просмотрите вывод и текущий этап перед следующим действием.",
+        phaseNone: "Состояния переноса пока нет", phaseReserved: "Назначение зарезервировано", phasePrepared: "Начальная копия завершена", phaseStopping: "Остановка исходных нагрузок", phaseSourceStopped: "Исходный сервер остановлен; финальная копия / проверка", phaseVerified: "Финальная копия проверена", phaseActivating: "Запуск нового сервера", phaseActive: "Новый сервер работает", pollActive: "Обновление каждые 5 секунд", pollIdle: "Обновите статус для подключения", pollPending: "Подключение…", logEmpty: "Вывода пока нет. Проверьте назначение или подключитесь к существующему заданию.", noJob: "На этом исходном сервере удалённое задание не найдено.", missingToken: "У этой консоли нет токена доступа. Снова откройте полный локальный URL, выведенный программой запуска.", invalidSource: "Укажите текущий сервер как root@имя-хоста или root@SSH-псевдоним.", invalidTarget: "Укажите назначение как root@имя-хоста или root@SSH-псевдоним.", invalidIp: "Укажите корректный IPv4 нового сервера, например 10.0.0.20.", sameHost: "Исходный сервер и назначение должны различаться.", requestFailed: "Не удалось связаться с локальной программой переноса. Оставьте её запущенной и подключитесь повторно, чтобы проверить исходный сервер.", invalidResponse: "Программа вернула некорректный ответ. Подключитесь повторно перед новым действием.", uncertainHelp: "Удалённое действие могло уже запуститься. Перед повтором используйте «Подключиться / обновить статус»; закрытие страницы не останавливает задание.", actionNotReady: "Проверьте назначение и подтвердите нужное согласие перед этим действием."
+      },
+      kk: {
+        activeReviewCopy: "Жаңа сервер жұмыс істеп тұрғанын растады, бірақ көшіру тапсырмасы сәтті аяқталмады. Журнал мен жаңа серверді тексеріңіз. Ескі серверді тоқтаулы қалдырып, төмендегі тексерулерді орындаңыз.",
+        title: "Dokploy серверін көшіру", skip: "Көшіруге өту", console: "Серверді көшіру", language: "Тіл", theme: "Тақырып", themeSystem: "Жүйелік тақырып", themeLight: "Ашық тақырып", themeDark: "Қараңғы тақырып",
+        heading: "Dokploy серверін көшіріңіз", intro: "Dokploy мен барлық жергілікті Docker жобаларын жаңа үйлесімді серверге көшіріңіз. Алдымен жаңа серверді тексеріп, толық көшіруді бір батырмамен бастаңыз.", stepsLabel: "Көшіру кезеңдері", stepCheck: "Жаңа серверді тексеру", stepMove: "Көшіру және ауыстыру", stepFinish: "Тексеру және DNS жаңарту",
+        connectionHeading: "Екі серверді қосыңыз", connectionCopy: "Root құқықтары бар SSH қолданыңыз. SSH кілттері мен тексерілген хост кілттері осы компьютерден бастапқы серверге және бастапқы серверден жаңа серверге жұмыс істеуі керек.",
+        source: "Қазіргі сервер", sourceHelp: "Осы компьютердегі root@хост-аты немесе root@SSH-бүркеншік-аты.", target: "Жаңа бос сервер", targetHelp: "SSH бүркеншік аты бастапқы серверде жұмыс істеуі керек. Linux пен Docker нұсқалары сәйкес келуі қажет; жаңа серверде Dokploy және жұмыс жүктемелері болмауы керек.", newIp: "Жаңа сервердің тұрақты IPv4 мекенжайы", ipHelp: "Swarm үшін желілік интерфейске тағайындалған мекенжай. NAT артында жергілікті жеке IPv4 қолданыңыз; ашық DNS басқа жария IP қолдана алады.",
+        plan: "Жаңа серверді тексеру", refresh: "Қайта қосылу / күйді жаңарту", reconnectHelp: "Қайта қосылу бастапқы сервердегі соңғы тапсырманы тауып, оның жаңа сервер параметрлерін қалпына келтіреді. Терезе жабылса да, тапсырма орындала береді.",
+        outageHeading: "Қызмет көрсету уақытын жоспарлаңыз", outageCopy: "Соңғы көшірме үшін қазіргі сервердегі барлық Docker жүктемелері тоқтайды. Жаңа сервер іске қосылғанда ескі сервер, қайта жүктелгеннен кейін де, тоқтаулы қалады.", acknowledge: "Мен үзіліске дайынмын, бөлек сақтық көшірмем бар. Орналастырулар мен көшірілетін деректерге жазатын басқа процестерді тоқтаттым.", move: "Барлық жергілікті жобаларды көшіру",
+        advanced: "Алдын ала көшіру және қалпына келтіру", prepareHeading: "Қызмет көрсетуге дейін көшіру", prepareCopy: "Бастапқы сервер қолжетімді кезде деректердің негізгі бөлігін көшіріңіз. Үзіліске дайын болғанда төмендегі соңғы ауыстыруды орындаңыз.", prepare: "Бастапқы көшірмені дайындау", cutoverHeading: "Дайындалған көшіруді аяқтау", cutoverCopy: "Бастапқы серверді тоқтатып, соңғы өзгерістерді көшіріп тексеріңіз, содан кейін жаңа серверді іске қосыңыз. Соңғы көшіру сәтсіз болса, себебін түзетіп, осы әрекетті қайталаңыз.", cutover: "Соңғы ауыстыруды орындау", resumeHeading: "Ескі серверді қайта іске қосу", resumeCopy: "Қалпына келтіру жаңа сервер белсендірілгенге дейін ғана мүмкін. Бұл ескі жүктемелерді іске қосады және дайын көшірмені ескіртеді. Жаңа сервер ешқашан іске қосылмағанын және тоқтаулы екенін дәлелдей алмаса, құрал әрекеттен бас тартады.", resumeAcknowledge: "Мен ескі жүктемелерді қайта іске қосуды көздеймін. Келесі соңғы ауыстыру өзгерістерді қайта көшіруі керек.", resume: "Бастапқы серверді қауіпсіз іске қосу",
+        statusHeading: "Көшіру күйі", actionLabel: "Әрекет", targetLabel: "Жаңа сервер", phaseLabel: "Кезең", jobLabel: "Тапсырма", finishHeading: "Ескі серверді жоймас бұрын аяқтаңыз", finishIp: "Dokploy ішінде: Web Server → Server → Update IP. Ескі IP мекенжайына сілтемелерді тексеріңіз.", finishTest: "Жаңа серверде бұрынғы кірулерді/MFA, дерекқор жазбаларын, файлдарды жүктеу мен алуды және әр қолданбаның жұмысын тексеріңіз.", finishDns: "DNS A/AAAA жазбалары мен провайдер желіаралық экрандарын жаңартыңыз. HTTPS, OAuth, пошта, боттар және сақтау қызметіне қосылуды тексеріңіз.", finishKeep: "Ескі серверді тоқтаулы қалдырып, сақтық көшірмені сақтаңыз. Жаңа фондық процестер DNS өзгермей тұрып деректерді өзгертуі мүмкін.",
+        scopeHeading: "Не көшіріледі", scopeCopy: "Dokploy параметрлері, жергілікті дерекқорлар, Docker томдары мен бейнелері, жүктелген файлдар, контейнер күйі, сертификаттар, орта айнымалылары және анықталған қолданба bind mount каталогтары.", scopeExternal: "Сыртқы дерекқор, S3, реестр және қашық сервер қосылымдарының параметрлері сақталады; сыртқы деректер сол қызметтерде қалады.", scopeHost: "DNS, бұлттық желіаралық экрандар, ОС пакеттері, cron тапсырмалары және көшірілетін жолдардан тыс деректер бөлек реттеледі.", logHeading: "Тапсырма журналы", footer: "Сәтсіз әрекетті қайталамас бұрын журналды оқыңыз. Қалпына келтіру автоматты түрде орындалмайды. Соңғы көшіру не тексеру сәтсіз болса, екі ортаны да тоқтаулы қалдырыңыз.",
+        gateCheck: "Көшіру алдында дәл осы бастапқы серверді, жаңа серверді және IPv4 мекенжайын тексеріңіз.", gateAcknowledge: "Жаңа сервер тексерілді. Көшіруді қосу үшін қызмет көрсетуге дайын екеніңізді растаңыз.", gateReady: "Осы параметрлер үшін жаңа сервер тексерілді. Көшіруге дайын.", gateBusy: "Қашық тапсырма орындалуда. Сервер параметрлері мен әрекеттер бұғатталған.", gatePending: "Бастапқы серверге қосылуда…", gateUnknown: "Соңғы әрекеттің іске қосылғанын білу үшін қайта қосылыңыз.", gateFinish: "Жаңа серверді белсендіру басталды. Оның жұмысын тексеріп, тізімді аяқтаңыз; бастапқы серверді іске қоспаңыз.", gateCutover: "Журналды қарап шыққаннан кейін «Соңғы ауыстыру» арқылы жалғастырыңыз немесе қайталаңыз.",
+        badgeIdle: "Тексерілмеді", badgeRunning: "Орындалуда", badgeSuccess: "Аяқталды", badgeFailed: "Назар аударыңыз", badgeUnknown: "Күйді тексеріңіз", badgeReady: "Дайын", idleTitle: "Жаңа серверді тексеруден бастаңыз", idleCopy: "Тексеру үйлесімділікті, жаңа сервердің бос болуын, деректердің қамтылуын және бос орынды бағалайды. Жүктемелер тоқтатылмайды.", planTitle: "Жаңа сервер тексеруден өтті", planCopy: "Журналдағы деректер жолдарын қараңыз. Толық көшіру алдымен деректерді көшіреді, содан кейін соңғы тексерілген тасымал үшін бастапқы серверді тоқтатады.", activeTitle: "Жаңа сервер жұмыс істейді — DNS аяқтаңыз", activeCopy: "Жаңа сервер іске қосылды, реплика мен контейнер тексерулері өтті. Ескі Docker ортасы тоқтаулы қалады. Төмендегі қолданба және трафик тексерулерін аяқтаңыз.", activatingTitle: "Жаңа серверді белсендіру басталды", activatingCopy: "Іске қосу сәтсіз болса, жаңа серверді тексеріңіз. Ол деректерді өзгертіп үлгеруі мүмкін. Ескі серверді қайта іске қоспаңыз және көшірмеңіз.", preparedTitle: "Бастапқы көшірме дайын — бастапқы сервер жұмыс істейді", preparedCopy: "Қызмет көрсету уақытын жоспарлап, үзіліске дайындықты растаңыз және соңғы ауыстыруды орындаңыз. Жаңа өзгерістер сервер іске қосылғанға дейін көшіріліп тексеріледі.", resumedTitle: "Ескі сервер қайта іске қосылды", resumedCopy: "Бастапқы жүктемелер қайта іске қосылды. Келесі соңғы ауыстыру өзгерістерді қайта көшіріп тексеруі керек.", failedTitle: "Әрекет сәтсіз — журналды оқыңыз", failedCopy: "Қайталаудан бұрын көрсетілген себепті түзетіңіз. Бастапқы жүктемелер тоқтаса, қауіпсіз ауыстыруға немесе тексерілген қалпына келтіруге дейін екі ортаны да тоқтаулы қалдырыңыз.", unknownTitle: "Қашық тапсырманың нәтижесі белгісіз", unknownCopy: "Жаңа әрекеттен бұрын қайта қосылып, журналды қараңыз. Қалпына келтіру орындалмады.", runningTitle: "Қашық тапсырма орындалуда", runningCopy: "Күй әр бес секунд сайын жаңарады. Бұл терезе жабылса да, бастапқы сервердегі тапсырма жалғасады. Мұнда қайта қосылу үшін жергілікті бағдарламаны ашық қалдырыңыз.", completeTitle: "Әрекет аяқталды", completeCopy: "Келесі әрекетті таңдаудан бұрын журнал мен ағымдағы кезеңді қараңыз.",
+        phaseNone: "Көшіру күйі әзірге жоқ", phaseReserved: "Жаңа сервер резервтелді", phasePrepared: "Бастапқы көшіру аяқталды", phaseStopping: "Бастапқы жүктемелер тоқтатылуда", phaseSourceStopped: "Бастапқы сервер тоқтаулы; соңғы көшіру / тексеру", phaseVerified: "Соңғы көшірме тексерілді", phaseActivating: "Жаңа сервер іске қосылуда", phaseActive: "Жаңа сервер жұмыс істейді", pollActive: "Әр 5 секунд сайын жаңарады", pollIdle: "Қайта қосылу үшін күйді жаңартыңыз", pollPending: "Қосылуда…", logEmpty: "Журнал әзірге бос. Жаңа серверді тексеріңіз немесе бар тапсырмаға қайта қосылыңыз.", noJob: "Бұл бастапқы серверде қашық тапсырма табылмады.", missingToken: "Бұл консольде кіру токені жоқ. Іске қосу бағдарламасы шығарған толық жергілікті URL мекенжайын қайта ашыңыз.", invalidSource: "Қазіргі серверді root@хост-аты немесе root@SSH-бүркеншік-аты түрінде енгізіңіз.", invalidTarget: "Жаңа серверді root@хост-аты немесе root@SSH-бүркеншік-аты түрінде енгізіңіз.", invalidIp: "Жаңа сервердің жарамды IPv4 мекенжайын енгізіңіз, мысалы 10.0.0.20.", sameHost: "Бастапқы және жаңа сервер әртүрлі болуы керек.", requestFailed: "Жергілікті көшіру бағдарламасына қосылу мүмкін болмады. Оны ашық қалдырып, бастапқы серверді тексеру үшін қайта қосылыңыз.", invalidResponse: "Бағдарлама жарамсыз жауап берді. Жаңа әрекеттен бұрын қайта қосылыңыз.", uncertainHelp: "Қашық әрекет іске қосылған болуы мүмкін. Қайталаудан бұрын «Қайта қосылу / күйді жаңарту» қолданыңыз; бетті жабу тапсырманы тоқтатпайды.", actionNotReady: "Бұл әрекеттен бұрын жаңа серверді тексеріп, қажетті келісімді растаңыз."
+      }
+    };
+    const $ = (id) => document.getElementById(id);
+    const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+    history.replaceState(null, "", location.pathname + location.search);
+    const inputs = { source: $("source"), target: $("target"), new_ip: $("new-ip") };
+    const actions = ["plan", "prepare", "move", "cutover", "resume-source"];
+    const phaseKeys = { reserved: "phaseReserved", reserving: "phaseReserved", prepared: "phasePrepared", stopping: "phaseStopping", "source-stopped": "phaseSourceStopped", verified: "phaseVerified", activating: "phaseActivating", active: "phaseActive" };
+    let locale = "en", job = null, planConfig = null, busy = false, uncertain = false, timer = null, errorKey = "", errorDetail = "", lastMessage = "";
+    const readPreference = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } };
+    const savePreference = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Preferences are optional. */ } };
+    const t = (key) => dictionaries[locale][key] || dictionaries.en[key] || key;
+    const setText = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
+    const config = () => ({ source: inputs.source.value.trim(), target: inputs.target.value.trim(), new_ip: inputs.new_ip.value.trim() });
+    const configKey = (value) => JSON.stringify([value.source, value.target, value.new_ip]);
+    const sameJobConfig = () => Boolean(job && job.target === config().target && job.new_ip === config().new_ip);
+    const validHost = (value) => /^root@(?:[a-zA-Z0-9][a-zA-Z0-9.-]*|\[[0-9a-fA-F:]+\])$/.test(value);
+    const validIp = (value) => /^(\d{1,3}\.){3}\d{1,3}$/.test(value) && value.split(".").every((part) => Number(part) <= 255 && String(Number(part)) === part);
+    const validate = (sourceOnly = false) => {
+      const value = config();
+      if (!validHost(value.source)) { inputs.source.setCustomValidity(t("invalidSource")); inputs.source.reportValidity(); return false; }
+      if (sourceOnly) return true;
+      if (!validHost(value.target)) { inputs.target.setCustomValidity(t("invalidTarget")); inputs.target.reportValidity(); return false; }
+      if (value.source.toLowerCase() === value.target.toLowerCase()) { inputs.target.setCustomValidity(t("sameHost")); inputs.target.reportValidity(); return false; }
+      if (!validIp(value.new_ip)) { inputs.new_ip.setCustomValidity(t("invalidIp")); inputs.new_ip.reportValidity(); return false; }
+      return true;
+    };
+    function availability() {
+      const active = Boolean(job && job.active);
+      const unknown = Boolean(job && !job.active && !["success", "failed"].includes(job.result));
+      const blocked = !token || busy || active || uncertain || unknown;
+      // A current source can retain the active state from its previous move.
+      // A read-only plan for a new destination has no migration phase yet.
+      const matched = sameJobConfig(), phase = matched && job.action !== "plan" ? job.phase : null;
+      const activated = matched && ["active", "activating"].includes(phase);
+      const late = matched && ["stopping", "source-stopped", "verified"].includes(phase);
+      const approved = planConfig === configKey(config());
+      const prepared = matched && phase === "prepared";
+      return { active, unknown, blocked, activated, late, approved, plan: !blocked && !activated && !late && !prepared, prepare: !blocked && (approved || prepared) && !activated && !late, move: !blocked && (approved || prepared) && $("acknowledge").checked && !activated && !late, cutover: !blocked && matched && ["prepared", "stopping", "source-stopped", "verified"].includes(phase) && $("acknowledge").checked, "resume-source": !blocked && matched && ["stopping", "source-stopped", "verified"].includes(phase) && $("resume-ack").checked };
+    }
+    function render() {
+      const allowed = availability();
+      const phase = job && job.action !== "plan" ? job.phase : null;
+      Object.values(inputs).forEach((input) => { input.disabled = busy || allowed.active || uncertain || !token; });
+      $("acknowledge").disabled = busy || allowed.active || uncertain || !token;
+      $("resume-ack").disabled = busy || allowed.active || uncertain || !token;
+      actions.forEach((action) => { $(action).disabled = !allowed[action]; });
+      $("refresh").disabled = busy || !token;
+      let gateKey = "gateCheck";
+      if (!token) gateKey = "missingToken";
+      else if (busy) gateKey = "gatePending";
+      else if (uncertain || allowed.unknown) gateKey = "gateUnknown";
+      else if (allowed.active) gateKey = "gateBusy";
+      else if (allowed.activated) gateKey = "gateFinish";
+      else if (allowed.late || (sameJobConfig() && phase === "prepared")) gateKey = "gateCutover";
+      else if (allowed.approved) gateKey = $("acknowledge").checked ? "gateReady" : "gateAcknowledge";
+      setText("gate", t(gateKey));
+      let title = "idleTitle", copy = "idleCopy", badge = "badgeIdle", tone = "";
+      if (uncertain) { title = "unknownTitle"; copy = "unknownCopy"; badge = "badgeUnknown"; tone = "warning"; }
+      else if (job) {
+        if (job.active) { title = "runningTitle"; copy = "runningCopy"; badge = "badgeRunning"; }
+        else if (phase === "active") { title = "activeTitle"; copy = job.result === "success" ? "activeCopy" : "activeReviewCopy"; badge = job.result === "success" ? "badgeSuccess" : "badgeFailed"; tone = job.result === "success" ? "success" : "warning"; }
+        else if (phase === "activating") { title = "activatingTitle"; copy = "activatingCopy"; badge = "badgeFailed"; tone = "warning"; }
+        else if (job.result === "failed") { title = "failedTitle"; copy = "failedCopy"; badge = "badgeFailed"; tone = "danger"; }
+        else if (job.result !== "success") { title = "unknownTitle"; copy = "unknownCopy"; badge = "badgeUnknown"; tone = "warning"; }
+        else if (job.action === "plan") { title = "planTitle"; copy = "planCopy"; badge = "badgeReady"; tone = "success"; }
+        else if (job.action === "resume-source") { title = "resumedTitle"; copy = "resumedCopy"; badge = "badgeSuccess"; tone = "success"; }
+        else if (phase === "prepared") { title = "preparedTitle"; copy = "preparedCopy"; badge = "badgeReady"; tone = "success"; }
+        else { title = "completeTitle"; copy = "completeCopy"; badge = "badgeSuccess"; tone = "success"; }
+      }
+      setText("status-title", t(title)); setText("status-copy", !job && lastMessage === "noJob" ? t("noJob") : t(copy)); setText("badge", t(badge)); $("badge").dataset.tone = tone;
+      $("metadata").hidden = !job;
+      if (job) {
+        setText("job-action", actions.includes(job.action) ? t(job.action === "resume-source" ? "resume" : job.action) : job.action);
+        setText("job-target", job.target || "—"); setText("job-phase", phase ? t(phaseKeys[phase] || phase) : t("phaseNone")); setText("job-id", job.id || "—");
+      }
+      $("finish").hidden = !["active", "activating"].includes(phase);
+      setText("poll-status", t(busy ? "pollPending" : allowed.active ? "pollActive" : "pollIdle"));
+      const output = job && job.log ? job.log : t("logEmpty");
+      if ($("log").textContent !== output) {
+        const follow = $("log").scrollHeight - $("log").scrollTop - $("log").clientHeight < 64;
+        $("log").textContent = output;
+        if (follow) $("log").scrollTop = $("log").scrollHeight;
+      }
+      $("error").hidden = !errorKey && !errorDetail;
+      setText("error-text", errorDetail || (errorKey ? t(errorKey) : ""));
+      $("error-help").hidden = !uncertain; setText("error-help", t("uncertainHelp"));
+    }
+    function schedulePoll() {
+      clearTimeout(timer);
+      if (job && job.active && token) timer = setTimeout(() => { if (!busy) refreshStatus(false); else schedulePoll(); }, 5000);
+    }
+    function acceptSnapshot(data, adoptConfig) {
+      job = data.job || null; uncertain = false; lastMessage = job ? "" : "noJob";
+      if (job && adoptConfig) {
+        if (typeof job.target === "string") inputs.target.value = job.target;
+        if (typeof job.new_ip === "string") inputs.new_ip.value = job.new_ip;
+      }
+      if (job && job.action === "plan" && job.result === "success" && !job.active && sameJobConfig()) planConfig = configKey(config());
+      if (job && job.action === "plan" && job.result !== "success") planConfig = null;
+      if (job && job.action === "resume-source" && job.result === "success") $("acknowledge").checked = false;
+    }
+    async function request(path, options) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+      try {
+        const response = await fetch(path, { ...options, headers: { "X-Migration-Token": token, ...(options && options.headers) }, credentials: "omit", cache: "no-store", signal: controller.signal, redirect: "error" });
+        let data;
+        try { data = await response.json(); } catch { throw new Error(t("invalidResponse")); }
+        if (!response.ok || !data || data.ok !== true) throw new Error(data && typeof data.error === "string" ? data.error : t("invalidResponse"));
+        if (data.job !== null && (!data.job || typeof data.job.active !== "boolean" || typeof data.job.log !== "string")) throw new Error(t("invalidResponse"));
+        return data;
+      } finally { clearTimeout(timeout); }
+    }
+    async function refreshStatus(manual = true) {
+      if (busy || !token || (manual && !validate(true))) return;
+      busy = true; errorKey = ""; errorDetail = ""; render();
+      try { acceptSnapshot(await request("/api/status?source=" + encodeURIComponent(config().source)), true); }
+      catch (error) { errorDetail = error instanceof Error && error.message ? error.message : t("requestFailed"); }
+      finally { busy = false; render(); schedulePoll(); }
+    }
+    async function runAction(action) {
+      if (busy || !token || !validate()) return;
+      if (!availability()[action]) { errorKey = "actionNotReady"; render(); return; }
+      busy = true; clearTimeout(timer); errorKey = ""; errorDetail = ""; render();
+      try { acceptSnapshot(await request("/api/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...config(), action }) }), false); }
+      catch (error) {
+        uncertain = true;
+        errorDetail = error instanceof Error && error.message ? error.message : t("requestFailed");
+      } finally { busy = false; render(); schedulePoll(); }
+    }
+    function applyLanguage(value) {
+      locale = Object.hasOwn(dictionaries, value) ? value : "en";
+      document.documentElement.lang = locale; document.title = t("title"); $("language").value = locale;
+      document.querySelectorAll("[data-i18n]").forEach((element) => { element.textContent = t(element.dataset.i18n); });
+      $("workflow").setAttribute("aria-label", t("stepsLabel")); $("log").setAttribute("aria-label", t("logHeading"));
+      Object.values(inputs).forEach((input) => input.setCustomValidity(""));
+      render();
+    }
+    function applyTheme(value) {
+      const theme = ["light", "dark"].includes(value) ? value : "system";
+      document.documentElement.dataset.theme = theme; $("theme").value = theme;
+    }
+    $("migration-form").addEventListener("submit", (event) => { event.preventDefault(); runAction("plan"); });
+    actions.filter((action) => action !== "plan").forEach((action) => $(action).addEventListener("click", () => runAction(action)));
+    $("refresh").addEventListener("click", () => refreshStatus());
+    Object.values(inputs).forEach((input) => input.addEventListener("input", () => {
+      input.setCustomValidity(""); planConfig = null; $("acknowledge").checked = false; $("resume-ack").checked = false;
+      if (input === inputs.source) { job = null; lastMessage = ""; clearTimeout(timer); }
+      errorKey = ""; errorDetail = ""; render();
+    }));
+    ["acknowledge", "resume-ack"].forEach((id) => $(id).addEventListener("change", render));
+    $("language").addEventListener("change", () => { savePreference("dokploy-move-language", $("language").value); applyLanguage($("language").value); });
+    $("theme").addEventListener("change", () => { savePreference("dokploy-move-theme", $("theme").value); applyTheme($("theme").value); });
+    if (!token) errorKey = "missingToken";
+    applyTheme(readPreference("dokploy-move-theme", "system"));
+    applyLanguage(readPreference("dokploy-move-language", "en"));
+  </script>
+</body>
+</html>

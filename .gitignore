@@ -1,0 +1,49 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.ssh/
+secrets/
+credentials/
+
+# Migration records, archives and logs belong outside source control
+.dokploy-move/
+migration-state/
+state.json
+latest.json
+*.log
+logs/
+backups/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.sql.gz
+
+# Python development files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
