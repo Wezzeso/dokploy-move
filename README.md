@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/readme-hero.svg" alt="Dokploy Move — move your stack, keep your state. Check, copy, verify, and start." width="100%">
+  <img src="assets/readme-hero.svg" alt="Dokploy Move — server migration for Dokploy" width="100%">
 </p>
 
 <p align="center">
